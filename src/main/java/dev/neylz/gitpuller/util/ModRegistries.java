@@ -3,7 +3,7 @@ package dev.neylz.gitpuller.util;
 import dev.neylz.gitpuller.command.*;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
-public class ModRegisteries {
+public class ModRegistries {
     public static void registerAll() {
         ModConfig.register();
 
