@@ -14,8 +14,10 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.WorldSavePath;
+import org.eclipse.jgit.api.Git;
 
 import java.io.File;
+import java.io.IOException;
 
 public class GitInfoCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
@@ -32,10 +34,27 @@ public class GitInfoCommand {
         );
     }
 
-    private static int datapackMonoInfo(CommandContext<ServerCommandSource> ctx) {
+    private static int datapackMonoInfo(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        File file = ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile();
+        String remote = "";
+
+        try (Git git = Git.open(file)) {
+            remote = git.getRepository().getConfig().getString("remote", "origin", "url");
+        } catch (IOException e) {
+            throw new CommandSyntaxException(null, () -> "Failed to open git repository: " + e.getMessage());
+        }
+
+        String finalRemote = remote;
         ctx.getSource().sendFeedback(() -> {
             return Text.empty()
-                    .append(Text.literal("Datapack is a mono-repo").formatted(Formatting.GREEN));
+                    .append(Text.literal("Currently tracking as monorepo ")
+                    .append(Text.literal(finalRemote).formatted(Formatting.AQUA))
+                    .append(Text.literal("\n  (").formatted(Formatting.RESET))
+                    .append(Text.literal(GitUtil.getCurrentBranch(file)).formatted(Formatting.DARK_GREEN))
+                    .append(Text.literal("-").formatted(Formatting.RESET))
+                    .append(Text.literal(GitUtil.getCurrentHeadSha1(file, 7)).formatted(Formatting.AQUA))
+                    .append(Text.literal(")").formatted(Formatting.RESET))
+            );
         }, false);
 
         return 1;

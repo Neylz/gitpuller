@@ -44,7 +44,7 @@ public class GitCheckoutCommand {
                 .executes(
                     (ctx) -> checkout(ctx, StringArgumentType.getString(ctx, "pack name"), StringArgumentType.getString(ctx, "branch"))
             )));
-            
+
         } else {
             checkoutCommand = checkoutCommand
                 .then(branchArg
@@ -60,10 +60,15 @@ public class GitCheckoutCommand {
 
     private static int checkoutMono(CommandContext<ServerCommandSource> ctx, String branch) throws CommandSyntaxException {
         ctx.getSource().sendFeedback(() -> Text.empty()
-                .append(Text.literal("Checking out branch ").formatted(Formatting.RESET))
+                .append(Text.literal("Checking out to ").formatted(Formatting.RESET))
                 .append(Text.literal(branch).formatted(Formatting.DARK_GREEN))
                 .append(Text.literal(" in the mono repo").formatted(Formatting.RESET)),
             true);
+
+        File file = ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile();
+
+        gitCheckout(ctx.getSource(), file, branch);
+
         return 1;
     }
 

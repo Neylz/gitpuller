@@ -43,6 +43,28 @@ public class GitPullCommand {
     private static int pullMonoPack(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ctx.getSource().sendFeedback(() -> Text.empty()
                 .append(Text.literal("Pulling changes from remote repository").formatted(Formatting.GREEN)), true);
+
+        File file = ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile();
+
+        // git pull -f --all
+        String sha1 = GitUtil.getCurrentHeadSha1(file, 7);
+        if (!gitPull(ctx.getSource(), file)) {
+            throw new CommandSyntaxException(null, () -> "Failed to pull changes from distant repository");
+        }
+
+        String newSha1 = GitUtil.getCurrentHeadSha1(file, 7);
+        if (!sha1.equals(newSha1)) {
+            ctx.getSource().sendFeedback(
+                () -> Text.empty()
+                        .append(Text.literal("Pulled changes").formatted(Formatting.RESET))
+                        .append(Text.literal(" (").formatted(Formatting.RESET))
+                        .append(Text.literal(sha1).formatted(Formatting.AQUA))
+                        .append(Text.literal(" -> ").formatted(Formatting.RESET))
+                        .append(Text.literal(newSha1).formatted(Formatting.LIGHT_PURPLE))
+                        .append(Text.literal(")").formatted(Formatting.RESET)),
+                true
+            );
+        }
         return 1;
     }
 

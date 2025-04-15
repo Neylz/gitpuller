@@ -100,3 +100,5 @@ gitpuller.monorepo=<url>
 ```
 
 Leaving this option empty or removing the entry from the config will disable the monorepo mode.
+
+⚠️ **WARNING: your ``/world/datapacks/`` folder must be empty before enabling this mode.**

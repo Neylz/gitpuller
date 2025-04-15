@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.neylz.gitpuller.GitPuller;
+import dev.neylz.gitpuller.util.GitUtil;
 import dev.neylz.gitpuller.util.ModConfig;
 import dev.neylz.gitpuller.util.TokenManager;
 import net.minecraft.command.CommandRegistryAccess;
@@ -24,7 +25,6 @@ import java.nio.file.Path;
 import java.util.regex.Pattern;
 
 public class GitCloneCommand {
-    private static final Pattern URL_PATTERN = Pattern.compile("^(https?|ftp)://[^\\s/$.?#].\\S*$");
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
         if (ModConfig.isMonoRepo()) {
@@ -45,7 +45,7 @@ public class GitCloneCommand {
     }
 
     private static int cloneDatapack(CommandContext<ServerCommandSource> ctx, String name, String remoteUrl) throws CommandSyntaxException {
-        if (!URL_PATTERN.matcher(remoteUrl).matches()) {
+        if (!GitUtil.URL_PATTERN.matcher(remoteUrl).matches()) {
             throw new CommandSyntaxException(null, () -> "Invalid URL: " + remoteUrl);
         }
 
