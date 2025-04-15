@@ -1,9 +1,11 @@
 package dev.neylz.gitpuller.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.neylz.gitpuller.util.GitUtil;
+import dev.neylz.gitpuller.util.ModConfig;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
@@ -17,11 +19,26 @@ import java.io.File;
 
 public class GitInfoCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+        LiteralArgumentBuilder<ServerCommandSource> infoCommand = CommandManager.literal("info");
+
+        if (!ModConfig.isMonoRepo()) {
+            infoCommand = infoCommand.executes(GitInfoCommand::datapackInfo);
+        } else {
+            infoCommand = infoCommand.executes(GitInfoCommand::datapackMonoInfo);
+        }
+
         dispatcher.register(CommandManager.literal("git")
-            .then(CommandManager.literal("info")
-                .executes(GitInfoCommand::datapackInfo)
-            )
+            .then(infoCommand)
         );
+    }
+
+    private static int datapackMonoInfo(CommandContext<ServerCommandSource> ctx) {
+        ctx.getSource().sendFeedback(() -> {
+            return Text.empty()
+                    .append(Text.literal("Datapack is a mono-repo").formatted(Formatting.GREEN));
+        }, false);
+
+        return 1;
     }
 
     private static int datapackInfo(CommandContext<ServerCommandSource> ctx) {

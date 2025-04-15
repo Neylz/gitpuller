@@ -1,5 +1,6 @@
 package dev.neylz.gitpuller;
 
+import dev.neylz.gitpuller.util.ModConfig;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,14 @@ public class GitPuller implements ModInitializer {
 
 
         registerAll();
+
+        if (ModConfig.isMonoRepo()) {
+            LOGGER.info("GitPuller is running in mono repo mode!");
+            LOGGER.info("Using {} as the mono repo URL", ModConfig.getMonoRepoUrl());
+            LOGGER.info("Commands syntax have been modified.");
+        } else {
+            LOGGER.info("GitPuller is running in multi repo mode (default)");
+        }
 
         LOGGER.info("GitPuller initialized!");
     }
