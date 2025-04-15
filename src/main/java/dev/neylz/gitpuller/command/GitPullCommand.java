@@ -2,10 +2,12 @@ package dev.neylz.gitpuller.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.neylz.gitpuller.GitPuller;
 import dev.neylz.gitpuller.util.GitUtil;
+import dev.neylz.gitpuller.util.ModConfig;
 import dev.neylz.gitpuller.util.TokenManager;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
@@ -23,12 +25,47 @@ import java.io.IOException;
 
 public class GitPullCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
-        dispatcher.register(CommandManager.literal("git")
-                .then(CommandManager.literal("pull").requires((source) -> source.hasPermissionLevel(2)).then(CommandManager.argument("pack name", StringArgumentType.word()).suggests(
-                        (ctx, builder) -> CommandSource.suggestMatching(GitUtil.getTrackedDatapacks(ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile()), builder))
-                        .executes((ctx) -> pullPack(ctx, StringArgumentType.getString(ctx, "pack name")))
-                ))
-        );
+        LiteralArgumentBuilder<ServerCommandSource> pullCommand = CommandManager.literal("pull").requires((source) -> source.hasPermissionLevel(2));
+
+        if (!ModConfig.isMonoRepo()) {
+            pullCommand = pullCommand.then(CommandManager.argument("pack name", StringArgumentType.word()).suggests(
+                    (ctx, builder) -> CommandSource.suggestMatching(GitUtil.getTrackedDatapacks(ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile()), builder))
+                .executes((ctx) -> pullPack(ctx, StringArgumentType.getString(ctx, "pack name")))
+            );
+        } else {
+            pullCommand = pullCommand.executes(GitPullCommand::pullMonoPack);
+        }
+
+        dispatcher.register(CommandManager.literal("git").then(pullCommand));
+    }
+
+
+    private static int pullMonoPack(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ctx.getSource().sendFeedback(() -> Text.empty()
+                .append(Text.literal("Pulling changes from remote repository").formatted(Formatting.GREEN)), true);
+
+        File file = ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile();
+
+        // git pull -f --all
+        String sha1 = GitUtil.getCurrentHeadSha1(file, 7);
+        if (!gitPull(ctx.getSource(), file)) {
+            throw new CommandSyntaxException(null, () -> "Failed to pull changes from distant repository");
+        }
+
+        String newSha1 = GitUtil.getCurrentHeadSha1(file, 7);
+        if (!sha1.equals(newSha1)) {
+            ctx.getSource().sendFeedback(
+                () -> Text.empty()
+                        .append(Text.literal("Pulled changes").formatted(Formatting.RESET))
+                        .append(Text.literal(" (").formatted(Formatting.RESET))
+                        .append(Text.literal(sha1).formatted(Formatting.AQUA))
+                        .append(Text.literal(" -> ").formatted(Formatting.RESET))
+                        .append(Text.literal(newSha1).formatted(Formatting.LIGHT_PURPLE))
+                        .append(Text.literal(")").formatted(Formatting.RESET)),
+                true
+            );
+        }
+        return 1;
     }
 
     private static int pullPack(CommandContext<ServerCommandSource> ctx, String packName) throws CommandSyntaxException {

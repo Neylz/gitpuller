@@ -10,9 +10,11 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public class GitUtil {
+    public static final Pattern URL_PATTERN = Pattern.compile("^(https?|ftp)://[^\\s/$.?#].\\S*$");
 
     @NotNull
     public static String getCurrentBranch(File file) {
@@ -52,6 +54,17 @@ public class GitUtil {
 
         try (Git ignored = Git.open(file)) {
             return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public static boolean isGitRepoRemote(File file, String remoteUrl) {
+        if (!file.exists()) return false;
+
+        try (Git git = Git.open(file)) {
+            String remote = git.getRepository().getConfig().getString("remote", "origin", "url");
+            return remote.equals(remoteUrl);
         } catch (IOException e) {
             return false;
         }

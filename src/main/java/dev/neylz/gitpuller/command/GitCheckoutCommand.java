@@ -2,9 +2,12 @@ package dev.neylz.gitpuller.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.neylz.gitpuller.util.GitUtil;
+import dev.neylz.gitpuller.util.ModConfig;
 import dev.neylz.gitpuller.util.TokenManager;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
@@ -29,19 +32,44 @@ import java.util.regex.Pattern;
 
 public class GitCheckoutCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
-        dispatcher.register(CommandManager.literal("git")
-            .then(CommandManager.literal("checkout")
-                .requires((source) -> source.hasPermissionLevel(2))
+        LiteralArgumentBuilder<ServerCommandSource> checkoutCommand = CommandManager.literal("checkout").requires((source) -> source.hasPermissionLevel(2));
+        RequiredArgumentBuilder<ServerCommandSource, String> branchArg = CommandManager.argument("branch", StringArgumentType.greedyString());
+
+        if (!ModConfig.isMonoRepo()) {
+            checkoutCommand = checkoutCommand
                 .then(CommandManager.argument("pack name", StringArgumentType.word()).suggests(
                     (ctx, builder) -> CommandSource.suggestMatching(GitUtil.getTrackedDatapacks(ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile()), builder))
-                    .then(CommandManager.argument("branch", StringArgumentType.greedyString()).suggests(
-                        (ctx, builder) -> CommandSource.suggestMatching(GitUtil.getBranches(new File(ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile(), StringArgumentType.getString(ctx, "pack name"))), builder))
-                    .executes(
-                        (ctx) -> checkout(ctx, StringArgumentType.getString(ctx, "pack name"), StringArgumentType.getString(ctx, "branch"))
-                    ))
-                )
-            )
+                .then(branchArg.suggests(
+                    (ctx, builder) -> CommandSource.suggestMatching(GitUtil.getBranches(new File(ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile(), StringArgumentType.getString(ctx, "pack name"))), builder))
+                .executes(
+                    (ctx) -> checkout(ctx, StringArgumentType.getString(ctx, "pack name"), StringArgumentType.getString(ctx, "branch"))
+            )));
+
+        } else {
+            checkoutCommand = checkoutCommand
+                .then(branchArg
+                .executes(
+                    (ctx) -> checkoutMono(ctx, StringArgumentType.getString(ctx, "branch"))
+                ));
+        }
+
+        dispatcher.register(CommandManager.literal("git")
+            .then(checkoutCommand)
         );
+    }
+
+    private static int checkoutMono(CommandContext<ServerCommandSource> ctx, String branch) throws CommandSyntaxException {
+        ctx.getSource().sendFeedback(() -> Text.empty()
+                .append(Text.literal("Checking out to ").formatted(Formatting.RESET))
+                .append(Text.literal(branch).formatted(Formatting.DARK_GREEN))
+                .append(Text.literal(" in the mono repo").formatted(Formatting.RESET)),
+            true);
+
+        File file = ctx.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS).toFile();
+
+        gitCheckout(ctx.getSource(), file, branch);
+
+        return 1;
     }
 
     private static int checkout(CommandContext<ServerCommandSource> ctx, String pack, String branch) throws CommandSyntaxException {
